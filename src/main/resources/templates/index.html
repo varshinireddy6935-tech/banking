@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Banking App</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f6f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+        }
+
+        .container {
+            width: 90%;
+            margin: auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        .output {
+            margin-top: 10px;
+            font-size: 14px;
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>🏦 Banking Simulator</h1>
+
+<div class="container">
+
+    <!-- Create Account -->
+    <div class="card">
+        <h3>Create Account</h3>
+        <input id="name" placeholder="Name">
+        <input id="email" placeholder="Email">
+        <input id="balance" placeholder="Initial Balance">
+        <button onclick="createAccount()">Create</button>
+        <div class="output" id="createResult"></div>
+    </div>
+
+    <!-- Deposit -->
+    <div class="card">
+        <h3>Deposit</h3>
+        <input id="depositId" placeholder="Account ID">
+        <input id="depositAmount" placeholder="Amount">
+        <button onclick="deposit()">Create Deposit</button>
+        <div class="output" id="depositResult"></div>
+    </div>
+
+    <!-- Withdraw -->
+    <div class="card">
+        <h3>Withdraw</h3>
+        <input id="withdrawId" placeholder="Account ID">
+        <input id="withdrawAmount" placeholder="Amount">
+        <button onclick="withdraw()">Withdraw</button>
+        <div class="output" id="withdrawResult"></div>
+    </div>
+
+    <!-- Transfer -->
+    <div class="card">
+        <h3>Transfer</h3>
+        <input id="fromId" placeholder="From ID">
+        <input id="toId" placeholder="To ID">
+        <input id="transferAmount" placeholder="Amount">
+        <button onclick="transfer()">Transfer</button>
+        <div class="output" id="transferResult"></div>
+    </div>
+
+</div>
+
+<script>
+    const BASE_URL = "http://localhost:8081/accounts";
+
+    function createAccount() {
+        fetch(BASE_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                name: document.getElementById("name").value,
+                email: document.getElementById("email").value,
+                balance: document.getElementById("balance").value
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("createResult").innerText = "Account Created ID: " + data.id;
+        });
+    }
+
+    function deposit() {
+        let id = document.getElementById("depositId").value;
+        let amount = document.getElementById("depositAmount").value;
+
+        fetch(`${BASE_URL}/deposit/${id}?amount=${amount}`, {
+            method: "POST"
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("depositResult").innerText = "Updated Balance: " + data.balance;
+        });
+    }
+
+    function withdraw() {
+        let id = document.getElementById("withdrawId").value;
+        let amount = document.getElementById("withdrawAmount").value;
+
+        fetch(`${BASE_URL}/withdraw/${id}?amount=${amount}`, {
+            method: "POST"
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("withdrawResult").innerText = "Updated Balance: " + data.balance;
+        })
+        .catch(err => {
+            document.getElementById("withdrawResult").innerText = "Error!";
+        });
+    }
+
+    function transfer() {
+        let fromId = document.getElementById("fromId").value;
+        let toId = document.getElementById("toId").value;
+        let amount = document.getElementById("transferAmount").value;
+
+        fetch(`${BASE_URL}/transfer?fromId=${fromId}&toId=${toId}&amount=${amount}`, {
+            method: "POST"
+        })
+        .then(res => res.text())
+        .then(data => {
+            document.getElementById("transferResult").innerText = data;
+        });
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Banking App</title>
+    <style>
+        body { font-family: Arial; background: #f4f6f9; margin: 0; padding: 0; }
+        h1 { text-align: center; padding: 20px; background: #2c3e50; color: white; }
+        .container {
+            width: 90%; margin: auto;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+        }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #3498db; color: white; border: none; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        .output { margin-top: 10px; font-size: 14px; color: green; }
+        button.loading { position: relative; pointer-events: none; opacity: 0.7; color: transparent; }
+        button.loading::after {
+            content: ""; width: 18px; height: 18px;
+            border: 3px solid white; border-top: 3px solid transparent;
+            border-radius: 50%; position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        .stat-grid {
+            width: 90%; margin: 20px auto;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+        }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        .stat-card h4 { color: #888; margin: 0 0 10px 0; font-size: 14px; }
+        .stat-card h2 { margin: 0; font-size: 32px; color: #2c3e50; }
+
+        .full-width { width: 90%; margin: 20px auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2c3e50; color: white; padding: 10px; text-align: center; }
+        td { padding: 10px; text-align: center; border-bottom: 1px solid #eee; }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 13px; }
+        .badge-deposit  { background: #d4edda; color: #155724; }
+        .badge-withdraw { background: #f8d7da; color: #721c24; }
+        .badge-transfer { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+
+<h1>🏦 Banking Simulator</h1>
+
+<!-- MAIN CARDS -->
+<div class="container">
+
+    <!-- Create Account -->
+    <div class="card">
+        <h3>Create Account</h3>
+        <input id="name" placeholder="Name">
+        <input id="email" placeholder="Email">
+        <input id="balance" placeholder="Initial Balance">
+        <button id="createBtn" onclick="createAccount()">Create</button>
+        <div class="output" id="createResult"></div>
+    </div>
+
+    <!-- Deposit -->
+    <div class="card">
+        <h3>Deposit</h3>
+        <input id="depositId" placeholder="Account ID">
+        <input id="depositAmount" placeholder="Amount">
+        <button id="depositBtn" onclick="deposit()">Deposit</button>
+        <div class="output" id="depositResult"></div>
+    </div>
+
+    <!-- Withdraw -->
+    <div class="card">
+        <h3>Withdraw</h3>
+        <input id="withdrawId" placeholder="Account ID">
+        <input id="withdrawAmount" placeholder="Amount">
+        <button id="withdrawBtn" onclick="withdraw()">Withdraw</button>
+        <div class="output" id="withdrawResult"></div>
+    </div>
+
+    <!-- Transfer -->
+    <div class="card">
+        <h3>Transfer</h3>
+        <input id="fromId" placeholder="From ID">
+        <input id="toId" placeholder="To ID">
+        <input id="transferAmount" placeholder="Amount">
+        <button id="transferBtn" onclick="transfer()">Transfer</button>
+        <div class="output" id="transferResult"></div>
+    </div>
+
+</div>
+
+<!-- TRANSACTION HISTORY -->
+<div class="full-width">
+    <div class="card">
+        <h3>Transaction History</h3>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input id="historyId" placeholder="Enter Account ID" style="margin-top:0; width:250px;">
+            <button onclick="loadHistory()" style="width:120px; margin-top:0;">View</button>
+        </div>
+        <div id="historyResult" style="margin-top:15px;">
+            <p id="historyEmpty" style="color:#888; display:none; text-align:center;">No transactions found.</p>
+            <table id="historyTable" style="display:none;">
+                <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>From ID</th>
+                    <th>To ID</th>
+                    <th>Time</th>
+                </tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const BASE_URL = "http://localhost:8081/accounts";
+
+    // ── DASHBOARD ──────────────────────────────────────────
+    function loadDashboard() {
+        fetch(BASE_URL)
+        .then(res => res.json())
+        .then(accounts => {
+            const total = accounts.length;
+            const balance = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+            document.getElementById("totalAccounts").innerText = total;
+            document.getElementById("totalBalance").innerText = "₹" + balance.toFixed(2);
+        })
+        .catch(() => {
+            document.getElementById("totalAccounts").innerText = "Error";
+            document.getElementById("totalBalance").innerText = "Error";
+        });
+    }
+
+    // ── TRANSACTION HISTORY ────────────────────────────────
+    function loadHistory() {
+        const id = document.getElementById("historyId").value.trim();
+        if (!id) { alert("Enter an Account ID!"); return; }
+
+        fetch(`${BASE_URL}/${id}/transactions`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById("historyBody");
+            const table = document.getElementById("historyTable");
+            const empty = document.getElementById("historyEmpty");
+            tbody.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                table.style.display = "none";
+                empty.style.display = "block";
+                return;
+            }
+
+            data.forEach(tx => {
+                const typeClass = tx.type === "DEPOSIT" ? "badge-deposit"
+                                : tx.type === "WITHDRAW" ? "badge-withdraw"
+                                : "badge-transfer";
+                tbody.innerHTML += `
+                    <tr>
+                        <td><span class="badge ${typeClass}">${tx.type}</span></td>
+                        <td>₹${tx.amount.toFixed(2)}</td>
+                        <td>${tx.fromAccountId ?? '-'}</td>
+                        <td>${tx.toAccountId ?? '-'}</td>
+                        <td style="font-size:12px; color:#888;">${new Date(tx.timestamp).toLocaleString()}</td>
+                    </tr>`;
+            });
+
+            table.style.display = "table";
+            empty.style.display = "none";
+        })
+        .catch(() => alert("Error loading history!"));
+    }
+
+    // ── CREATE ACCOUNT ─────────────────────────────────────
+    function createAccount() {
+        const name    = document.getElementById("name").value.trim();
+        const email   = document.getElementById("email").value.trim();
+        const balance = document.getElementById("balance").value.trim();
+
+        clearMsg("createResult");
+
+        if (!name || !email || !balance) { showError("createResult", "All fields are required!"); return; }
+        if (!isValidEmail(email))         { showError("createResult", "Invalid email format!"); return; }
+        if (isNaN(balance) || Number(balance) < 0) { showError("createResult", "Balance must be a valid positive number!"); return; }
+
+        const btn = document.getElementById("createBtn");
+        btn.classList.add("loading");
+
+        fetch(BASE_URL, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ name, email, balance: Number(balance) })
+        })
+        .then(res => res.json())
+        .then(data => {
+            showSuccess("createResult", "Account Created! ID: " + data.id);
+            document.getElementById("name").value = "";
+            document.getElementById("email").value = "";
+            document.getElementById("balance").value = "";
+            loadDashboard();
+        })
+        .catch(() => showError("createResult", "Error creating account!"))
+        .finally(() => btn.classList.remove("loading"));
+    }
+
+    // ── DEPOSIT ────────────────────────────────────────────
+    function deposit() {
+        const id     = document.getElementById("depositId").value.trim();
+        const amount = document.getElementById("depositAmount").value.trim();
+
+        clearMsg("depositResult");
+        if (!id || !amount)                      { showError("depositResult", "All fields are required!"); return; }
+        if (isNaN(amount) || Number(amount) <= 0) { showError("depositResult", "Enter valid amount!"); return; }
+
+        const btn = document.getElementById("depositBtn");
+        btn.classList.add("loading");
+
+        fetch(`${BASE_URL}/deposit/${id}?amount=${amount}`, { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+            showSuccess("depositResult", "Updated Balance: ₹" + data.balance);
+            document.getElementById("depositId").value = "";
+            document.getElementById("depositAmount").value = "";
+            loadDashboard();
+        })
+        .catch(() => showError("depositResult", "Error!"))
+        .finally(() => btn.classList.remove("loading"));
+    }
+
+    // ── WITHDRAW ───────────────────────────────────────────
+    function withdraw() {
+        const id     = document.getElementById("withdrawId").value.trim();
+        const amount = document.getElementById("withdrawAmount").value.trim();
+
+        clearMsg("withdrawResult");
+        if (!id || !amount)                      { showError("withdrawResult", "All fields are required!"); return; }
+        if (isNaN(amount) || Number(amount) <= 0) { showError("withdrawResult", "Enter valid amount!"); return; }
+
+        const btn = document.getElementById("withdrawBtn");
+        btn.classList.add("loading");
+
+        fetch(`${BASE_URL}/withdraw/${id}?amount=${amount}`, { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+            showSuccess("withdrawResult", "Updated Balance: ₹" + data.balance);
+            document.getElementById("withdrawId").value = "";
+            document.getElementById("withdrawAmount").value = "";
+            loadDashboard();
+        })
+        .catch(() => showError("withdrawResult", "Error!"))
+        .finally(() => btn.classList.remove("loading"));
+    }
+
+    // ── TRANSFER ───────────────────────────────────────────
+    function transfer() {
+        const fromId  = document.getElementById("fromId").value.trim();
+        const toId    = document.getElementById("toId").value.trim();
+        const amount  = document.getElementById("transferAmount").value.trim();
+
+        clearMsg("transferResult");
+        if (!fromId || !toId || !amount)          { showError("transferResult", "All fields are required!"); return; }
+        if (fromId === toId)                       { showError("transferResult", "From and To cannot be same!"); return; }
+        if (isNaN(amount) || Number(amount) <= 0)  { showError("transferResult", "Enter valid amount!"); return; }
+
+        const btn = document.getElementById("transferBtn");
+        btn.classList.add("loading");
+
+        fetch(`${BASE_URL}/transfer?fromId=${fromId}&toId=${toId}&amount=${amount}`, { method: "POST" })
+        .then(res => res.text())
+        .then(data => {
+            showSuccess("transferResult", data);
+            document.getElementById("fromId").value = "";
+            document.getElementById("toId").value = "";
+            document.getElementById("transferAmount").value = "";
+            loadDashboard();
+        })
+        .catch(() => showError("transferResult", "Error!"))
+        .finally(() => btn.classList.remove("loading"));
+    }
+
+    // ── HELPERS ────────────────────────────────────────────
+    function showSuccess(id, msg) {
+        const el = document.getElementById(id);
+        el.style.color = "green";
+        el.innerText = msg;
+    }
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.style.color = "red";
+        el.innerText = msg;
+    }
+    function clearMsg(id) {
+        const el = document.getElementById(id);
+        el.innerText = "";
+        el.style.color = "green";
+    }
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    // ── ON PAGE LOAD ───────────────────────────────────────
+    loadDashboard();
+</script>
+
+</body>
+</html>
